@@ -87,6 +87,13 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import io.opentracing.Scope;
+import io.opentracing.Span;
+import io.opentracing.SpanContext;
+import io.opentracing.propagation.Format;
+import io.opentracing.propagation.TextMapExtractAdapter;
+import io.opentracing.util.GlobalTracer;
+
 /**
  * @author <a href="mailto:tadamski@redhat.com">Tomasz Adamski</a>
  */
@@ -200,7 +207,8 @@ final class AssociationImpl implements Association, AutoCloseable {
                 });
             }
 
-            try {
+            Span s = wrapContextAroundNewSpan(retrieveContextFromAttachments(attachments));
+            try(Scope _s = GlobalTracer.get().activateSpan(s)) {
                 final Map<String, Object> contextDataHolder = new HashMap<>();
                 result = invokeMethod(componentView, invokedMethod, invocationRequest, requestContent, cancellationFlag, contextDataHolder);
                 attachments.putAll(contextDataHolder);
@@ -238,6 +246,7 @@ final class AssociationImpl implements Association, AutoCloseable {
                 return;
             } finally {
                 SecurityActions.remotingContextClear();
+                s.finish();
             }
             // invocation was successful
             if (! oneWay) try {
@@ -250,6 +259,20 @@ final class AssociationImpl implements Association, AutoCloseable {
         // invoke the method and write out the response, possibly on a separate thread
         execute(invocationRequest, runnable, isAsync, false);
         return cancellationFlag::cancel;
+    }
+
+    private Span wrapContextAroundNewSpan(SpanContext spanCtx) {
+        return GlobalTracer.get().buildSpan("EJB-REMOTING").asChildOf(spanCtx).start();
+    }
+
+    private SpanContext retrieveContextFromAttachments(Map<String, Object> attachments) {
+        Map<String, String> stringAttachments = new HashMap<>();
+        for (Map.Entry<String, Object> e : attachments.entrySet()) {
+            if(e.getValue() instanceof String) {
+                stringAttachments.put(e.getKey(), (String) e.getValue());
+            }
+        }
+        return GlobalTracer.get().extract(Format.Builtin.TEXT_MAP_EXTRACT, new TextMapExtractAdapter(stringAttachments));
     }
 
     private void updateAffinities(InvocationRequest invocationRequest, Map<String, Object> attachments, EJBLocator<?> ejbLocator, ComponentView componentView) {
