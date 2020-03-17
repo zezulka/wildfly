@@ -91,6 +91,7 @@ import io.opentracing.Scope;
 import io.opentracing.Span;
 import io.opentracing.SpanContext;
 import io.opentracing.propagation.Format;
+import io.opentracing.propagation.TextMapAdapter;
 import io.opentracing.propagation.TextMapExtractAdapter;
 import io.opentracing.util.GlobalTracer;
 
@@ -272,7 +273,7 @@ final class AssociationImpl implements Association, AutoCloseable {
                 stringAttachments.put(e.getKey(), (String) e.getValue());
             }
         }
-        return GlobalTracer.get().extract(Format.Builtin.TEXT_MAP_EXTRACT, new TextMapExtractAdapter(stringAttachments));
+        return GlobalTracer.get().extract(Format.Builtin.TEXT_MAP, new TextMapAdapter(stringAttachments));
     }
 
     private void updateAffinities(InvocationRequest invocationRequest, Map<String, Object> attachments, EJBLocator<?> ejbLocator, ComponentView componentView) {
