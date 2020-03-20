@@ -92,7 +92,6 @@ import io.opentracing.Span;
 import io.opentracing.SpanContext;
 import io.opentracing.propagation.Format;
 import io.opentracing.propagation.TextMapAdapter;
-import io.opentracing.propagation.TextMapExtractAdapter;
 import io.opentracing.util.GlobalTracer;
 
 /**
